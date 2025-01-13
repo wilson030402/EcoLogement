@@ -4,190 +4,154 @@ import json
 import requests
 import sqlite3
 from datetime import datetime
+import os
 
 API_KEY = "5bc3a318b0393d04039340e343ff1770"  # Remplacez par votre clé API
 
 class MyHandler(BaseHTTPRequestHandler):
+    def handle_factures(self):
+        # Connexion à la base de données et récupération des factures
+        conn = sqlite3.connect("logement.db")
+        conn.row_factory = sqlite3.Row
+        c = conn.cursor()
+        c.execute("SELECT type_facture, SUM(montant) AS total FROM Facture GROUP BY type_facture")
+        factures = c.fetchall()
+        conn.close()
+
+        # Préparation des données pour le graphique
+        chart_data = [["Type de Facture", "Montant"]]
+        for facture in factures:
+            chart_data.append([facture["type_facture"], facture["total"]])
+
+        chart_data_json = json.dumps(chart_data)
+
+        # Chemin vers le fichier HTML
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'facture.html')
+
+        try:
+            with open(html_file_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+
+            # Remplacer le placeholder par les données JSON
+            html_content = html_content.replace('CHART_DATA_JSON', chart_data_json)
+
+            # Envoyer la réponse HTTP avec le contenu HTML modifié
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(html_content.encode('utf-8'))
+
+        except FileNotFoundError:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = "Erreur interne du serveur : fichier HTML non trouvé."
+            self.wfile.write(error_message.encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = f"Erreur interne du serveur : {str(e)}"
+            self.wfile.write(error_message.encode('utf-8'))
+
+    def handle_meteo(self, scale):
+        chart_data = None
+        title = ""
+        graph_type = "LineChart"
+
+        if scale in ['2', '5']:
+            # Utiliser l'endpoint /forecast pour 2 ou 5 jours
+            url = f"http://api.openweathermap.org/data/2.5/forecast?q=Paris&appid={API_KEY}&units=metric"
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
+                weather_data = response.json()
+
+                chart_data = [["Heure et Date", "Température (°C)"]]
+                count = 0
+                max_count = int(scale) * 8  # 8 intervalles de 3 heures par jour
+
+                for item in weather_data["list"]:
+                    if count >= max_count:
+                        break
+                    dt = datetime.strptime(item["dt_txt"], "%Y-%m-%d %H:%M:%S")
+                    heure_et_date = f"{dt.strftime('%H:%M')}\n{dt.strftime('%d/%m')}"
+                    chart_data.append([heure_et_date, item["main"]["temp"]])
+                    count += 1
+
+                title = f"Prévisions Météo pour les {scale} Prochains Jours"
+
+            except requests.exceptions.RequestException as e:
+                print(f"Erreur lors de la récupération des données météo : {e}")
+                chart_data = None
+
+        else:
+            # Échelle non reconnue
+            chart_data = None
+
+        # Chemin vers le fichier HTML
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'meteo.html')
+
+        try:
+            with open(html_file_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+
+            if chart_data:
+                chart_data_json = json.dumps(chart_data)
+                # Déterminer les options dynamiques
+                html_content = html_content.replace('CHART_DATA_JSON', chart_data_json)
+                html_content = html_content.replace('TITLE_PLACEHOLDER', title)
+                html_content = html_content.replace('GRAPH_TYPE_PLACEHOLDER', graph_type)
+                # Gérer la sélection dans la barre déroulante
+                selected_day = 'selected' if scale == '2' else ''
+                selected_week = 'selected' if scale == '5' else ''
+                html_content = html_content.replace('{{SELECTED_DAY}}', selected_day)
+                html_content = html_content.replace('{{SELECTED_WEEK}}', selected_week)
+            else:
+                # Remplacer les placeholders même en cas d'erreur
+                html_content = html_content.replace('CHART_DATA_JSON', '[]')
+                html_content = html_content.replace('TITLE_PLACEHOLDER', "Prévisions Météo pour Paris")
+                html_content = html_content.replace('GRAPH_TYPE_PLACEHOLDER', "LineChart")
+                selected_day = 'selected' if scale == '2' else ''
+                selected_week = 'selected' if scale == '5' else ''
+                html_content = html_content.replace('{{SELECTED_DAY}}', selected_day)
+                html_content = html_content.replace('{{SELECTED_WEEK}}', selected_week)
+
+            # Envoyer la réponse HTTP avec le contenu HTML modifié
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(html_content.encode('utf-8'))
+
+        except FileNotFoundError:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = "Erreur interne du serveur : fichier HTML non trouvé."
+            self.wfile.write(error_message.encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = f"Erreur interne du serveur : {str(e)}"
+            self.wfile.write(error_message.encode('utf-8'))
+
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
         query_params = urllib.parse.parse_qs(parsed_path.query)
 
-        # Route pour afficher le camembert des factures
         if parsed_path.path == "/factures":
-            conn = sqlite3.connect("logement.db")
-            conn.row_factory = sqlite3.Row
-            c = conn.cursor()
-            c.execute("SELECT type_facture, SUM(montant) AS total FROM Facture GROUP BY type_facture")
-            factures = c.fetchall()
-            conn.close()
-
-            chart_data = [["Type de Facture", "Montant"]]
-            for facture in factures:
-                chart_data.append([facture["type_facture"], facture["total"]])
-
-            chart_data_json = json.dumps(chart_data)
-
-            html = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-                <title>Camembert des Factures</title>
-                <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-                <script type="text/javascript">
-                    google.charts.load('current', {{'packages':['corechart']}});
-                    google.charts.setOnLoadCallback(drawChart);
-
-                    function drawChart() {{
-                        var data = google.visualization.arrayToDataTable({chart_data_json});
-                        var options = {{
-                            title: 'Répartition des Montants par Type de Facture',
-                            pieHole: 0.4
-                        }};
-                        var chart = new google.visualization.PieChart(document.getElementById('piechart'));
-                        chart.draw(data, options);
-                    }}
-                </script>
-            </head>
-            <body>
-                <h1 style="text-align: center;">Répartition des Factures</h1>
-                <div id="piechart" style="width: 900px; height: 500px; margin: auto;"></div>
-            </body>
-            </html>
-            """
-
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-            self.wfile.write(html.encode('utf-8'))
-
-        # Route modifiée pour afficher la météo avec une barre déroulante
+            self.handle_factures()
         elif parsed_path.path == "/meteo":
             # Récupérer le paramètre 'scale', défaut à '5' si non spécifié
             scale = query_params.get('scale', ['5'])[0]
-
-            chart_data = None
-            title = ""
-            graph_type = "LineChart"
-
-            if scale in ['2', '5']:
-                # Utiliser l'endpoint /forecast pour 2 ou 5 jours
-                url = f"http://api.openweathermap.org/data/2.5/forecast?q=Paris&appid={API_KEY}&units=metric"
-                try:
-                    response = requests.get(url)
-                    response.raise_for_status()
-                    weather_data = response.json()
-
-                    chart_data = [["Heure et Date", "Température (°C)"]]
-                    count = 0
-                    max_count = int(scale) * 8  # 8 intervalles de 3 heures par jour
-
-                    for item in weather_data["list"]:
-                        if count >= max_count:
-                            break
-                        dt = datetime.strptime(item["dt_txt"], "%Y-%m-%d %H:%M:%S")
-                        heure_et_date = f"{dt.strftime('%H:%M')}\n{dt.strftime('%d/%m')}"
-                        chart_data.append([heure_et_date, item["main"]["temp"]])
-                        count += 1
-
-                    title = f"Prévisions Météo pour les {scale} Prochains Jours"
-
-                except requests.exceptions.RequestException as e:
-                    print(f"Erreur lors de la récupération des données météo : {e}")
-                    chart_data = None
-
-            else:
-                # Échelle non reconnue
-                chart_data = None
-
-            # Préparer le graphique si les données sont disponibles
-            if chart_data:
-                chart_data_json = json.dumps(chart_data)
-
-                html = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Météo pour Paris</title>
-                    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-                    <script type="text/javascript">
-                        google.charts.load('current', {{'packages':['corechart']}});
-                        google.charts.setOnLoadCallback(drawChart);
-
-                        function drawChart() {{
-                            var data = google.visualization.arrayToDataTable({chart_data_json});
-                            var options = {{
-                                title: '{title}',
-                                curveType: 'function',
-                                legend: {{ position: 'bottom' }},
-                                hAxis: {{
-                                    title: 'Heure et Date',
-                                    slantedText: true,
-                                    slantedTextAngle: 45
-                                }},
-                                vAxis: {{ title: 'Température (°C)' }}
-                            }};
-                            var chart = new google.visualization.{graph_type}(document.getElementById('curve_chart'));
-                            chart.draw(data, options);
-                        }}
-                    </script>
-                </head>
-                <body>
-                    <h1 style="text-align: center;">Prévisions Météo pour Paris</h1>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <label for="scale">Choisissez l'échelle de temps : </label>
-                        <select id="scale" name="scale" onchange="changeScale()">
-                            <option value="2" {"selected" if scale == "2" else ""}>2 Jours</option>
-                            <option value="5" {"selected" if scale == "5" else ""}>5 Jours</option>
-                        </select>
-                    </div>
-                    <div id="curve_chart" style="width: 1500px; height: 500px; margin: auto;"></div>
-                    <script type="text/javascript">
-                        function changeScale() {{
-                            var scale = document.getElementById('scale').value;
-                            window.location.href = "/meteo?scale=" + scale;
-                        }}
-                    </script>
-                </body>
-                </html>
-                """
-            else:
-                # Si aucune donnée disponible (par exemple, pour des erreurs ou des échelles non supportées)
-                html = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>Météo pour Paris</title>
-                </head>
-                <body>
-                    <h1 style="text-align: center;">Prévisions Météo pour Paris</h1>
-                    <div style="text-align: center; margin-bottom: 20px;">
-                        <label for="scale">Choisissez l'échelle de temps : </label>
-                        <select id="scale" name="scale" onchange="changeScale()">
-                            <option value="2" {"selected" if scale == "2" else ""}>2 Jours</option>
-                            <option value="5" {"selected" if scale == "5" else ""}>5 Jours</option>
-                        </select>
-                    </div>
-                    <p style="text-align: center;">Données météo pour cette échelle de temps ne sont pas disponibles.</p>
-                    <script type="text/javascript">
-                        function changeScale() {{
-                            var scale = document.getElementById('scale').value;
-                            window.location.href = "/meteo?scale=" + scale;
-                        }}
-                    </script>
-                </body>
-                </html>
-                """
-
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html")
-            self.end_headers()
-            self.wfile.write(html.encode('utf-8'))
-
-        # Route pour récupérer la température actuelle de l'API
+            self.handle_meteo(scale)
         elif parsed_path.path == "/get_current_temp":
+            # Route pour récupérer la température actuelle de l'API
             url = f"http://api.openweathermap.org/data/2.5/weather?q=Paris&appid={API_KEY}&units=metric"
-            response = requests.get(url)
-            if response.status_code == 200:
+            try:
+                response = requests.get(url)
+                response.raise_for_status()
                 weather_data = response.json()
                 # Extraction de la température actuelle
                 current_temp = weather_data["main"]["temp"]
@@ -197,13 +161,14 @@ class MyHandler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(result).encode('utf-8'))
-            else:
+            except requests.exceptions.RequestException as e:
+                print(f"Erreur lors de la récupération de la température actuelle : {e}")
                 self.send_response(500)
                 self.end_headers()
                 self.wfile.write(json.dumps({"error": "Impossible de récupérer la température actuelle"}).encode('utf-8'))
 
-        # Route pour récupérer les factures (JSON)
         elif parsed_path.path == "/get_factures":
+            # Route pour récupérer les factures (JSON)
             conn = sqlite3.connect("logement.db")
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
@@ -215,8 +180,8 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(json.dumps(factures).encode('utf-8'))
 
-        # Route pour récupérer les mesures (JSON)
         elif parsed_path.path == "/get_mesures":
+            # Route pour récupérer les mesures (JSON)
             conn = sqlite3.connect("logement.db")
             conn.row_factory = sqlite3.Row
             c = conn.cursor()
