@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Météo pour Paris</title>
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+        google.charts.load('current', {'packages':['corechart']});
+        google.charts.setOnLoadCallback(drawChart);
+
+        function drawChart() {
+            var data = google.visualization.arrayToDataTable(CHART_DATA_JSON);
+            var options = {
+                title: 'TITLE_PLACEHOLDER',
+                curveType: 'function',
+                legend: { position: 'bottom' },
+                hAxis: {
+                    title: 'Heure et Date',
+                    slantedText: true,
+                    slantedTextAngle: 45
+                },
+                vAxis: { title: 'Température (°C)' }
+            };
+            var chart = new google.visualization.GRAPH_TYPE_PLACEHOLDER(document.getElementById('curve_chart'));
+            chart.draw(data, options);
+        }
+    </script>
+    <style>
+        body {
+            background-image: url('https://media.ouest-france.fr/v1/pictures/MjAxOTEyN2QyZTU1NWUyNDcyNDM0YjgzZGQyMjI0NGEwMDEzMzg?width=630&height=354&focuspoint=50%2C25&cropresize=1&client_id=bpeditorial&sign=64e8f985676171542329c571fc8b4c159e354f9c87834124dceec17a5f545739'); /* Remplacez BACKGROUND_IMAGE_URL par le lien de votre image */
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        h1 {
+            text-align: center;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+        }
+        #curve_chart {
+            background: rgba(255, 255, 255, 0.8); /* Légèrement transparent */
+            border-radius: 10px;
+            padding: 10px;
+        }
+        select {
+            padding: 5px;
+            font-size: 16px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prévisions Météo pour Paris</h1>
+    <div style="text-align: center; margin-bottom: 20px;">
+        <label for="scale" style="color: white; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);">Choisissez l'échelle de temps : </label>
+        <select id="scale" name="scale" onchange="changeScale()">
+            <option value="2" {{SELECTED_DAY}}>2 Jours</option>
+            <option value="5" {{SELECTED_WEEK}}>5 Jours</option>
+        </select>
+    </div>
+    <div id="curve_chart" style="width: 1500px; height: 500px; margin: auto;"></div>
+    <script type="text/javascript">
+        function changeScale() {
+            var scale = document.getElementById('scale').value;
+            window.location.href = "/meteo?scale=" + scale;
+        }
+    </script>
+</body>
+</html>
