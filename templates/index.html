@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Accueil</title>
+    <style>
+        body {
+            background-image: url('https://www.batiactu.com/images/auto/620-465-c/20160205_135911_8-ad.jpg'); /* Remplacez BACKGROUND_IMAGE_URL par le lien de votre image */
+            background-size: cover;
+            background-attachment: fixed;
+            background-position: center;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+        .container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .rectangle {
+            width: 300px;
+            height: 200px;
+            margin: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-decoration: none;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+        .rectangle:hover {
+            transform: scale(1.05);
+        }
+        /* Remplacez les URLs d'image ci-dessous par celles de votre choix */
+        .facture {
+            background-image: url('https://leguidedelartiste.com/wp-content/uploads/2021/02/facturer-calcul.jpg');
+        }
+        .meteo {
+            background-image: url('https://media.ouest-france.fr/v1/pictures/MjAxOTEyN2QyZTU1NWUyNDcyNDM0YjgzZGQyMjI0NGEwMDEzMzg?width=630&height=354&focuspoint=50%2C25&cropresize=1&client_id=bpeditorial&sign=64e8f985676171542329c571fc8b4c159e354f9c87834124dceec17a5f545739');
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/factures" class="rectangle facture">
+            Factures
+        </a>
+        <a href="/meteo" class="rectangle meteo">
+            Meteo
+        </a>
+    </div>
+</body>
+</html>
+

@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Jauges de Température et d'Humidité</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-bottom: 30px;
+    }
+    .gauge-container {
+      display: inline-block;
+      margin: 20px;
+    }
+    /* Style de la jauge circulaire */
+    .gauge {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      background: conic-gradient(var(--fill-color) 0deg, var(--bg-color) 0deg);
+      /* Les variables CSS --fill-color et --bg-color définissent respectivement la couleur de remplissage et celle de l'arrière-plan */
+      margin: 0 auto;
+      transition: background 0.5s ease;
+    }
+    /* Cercle blanc au centre pour l'effet de cadran */
+    .gauge::after {
+      content: "";
+      position: absolute;
+      top: 10%;
+      left: 10%;
+      width: 80%;
+      height: 80%;
+      background: #fff;
+      border-radius: 50%;
+      z-index: 1;
+    }
+    /* La zone d'affichage de la valeur */
+    .gauge__cover {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8em;
+      font-weight: bold;
+    }
+    p {
+      margin-top: 10px;
+      font-size: 1.2em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Jauges de Température et d'Humidité</h1>
+  <!-- Jauge de Température -->
+  <div class="gauge-container">
+    <div class="gauge" id="tempGauge" style="--fill-color: #e0440e; --bg-color: #f6c7b6;">
+      <div class="gauge__cover" id="tempCover">-- °C</div>
+    </div>
+    <p>Température</p>
+  </div>
+  <!-- Jauge d'Humidité -->
+  <div class="gauge-container">
+    <div class="gauge" id="humidityGauge" style="--fill-color: #1c91c0; --bg-color: #d7e5f0;">
+      <div class="gauge__cover" id="humidityCover">-- %</div>
+    </div>
+    <p>Humidité</p>
+  </div>
+
+  <script>
+    /**
+     * La fonction updateGauges récupère les mesures de la base de données via la route /get_mesures,
+     * filtre les enregistrements pour l'ID 0 (température) et l'ID 1 (humidité),
+     * puis met à jour les jauges.
+     */
+    function updateGauges() {
+      fetch('/get_mesures')
+        .then(response => response.json())
+        .then(data => {
+          // Filtrer les mesures par capteur
+          const tempMeasures = data.filter(m => parseInt(m.id_capteur_actionneur) === 0);
+          const humidityMeasures = data.filter(m => parseInt(m.id_capteur_actionneur) === 1);
+
+          // Choisir la dernière mesure (si disponible) pour chaque capteur
+          let temp = null;
+          let humidity = null;
+
+          if (tempMeasures.length > 0) {
+            // On prend la dernière mesure
+            temp = parseFloat(tempMeasures[tempMeasures.length - 1].valeur);
+          }
+          if (humidityMeasures.length > 0) {
+            humidity = parseFloat(humidityMeasures[humidityMeasures.length - 1].valeur);
+          }
+
+          // Mise à jour de la jauge de température
+          if (temp !== null) {
+            // Nous considérons ici une plage de -10°C à 40°C.
+            // On normalise : -10 -> 0 et 40 -> 1.
+            const tempNorm = Math.min(Math.max((temp + 10) / 50, 0), 1);
+            const tempAngle = tempNorm * 360; // conversion en degrés
+            document.getElementById('tempGauge').style.background =
+              `conic-gradient(var(--fill-color) ${tempAngle}deg, var(--bg-color) ${tempAngle}deg)`;
+            document.getElementById('tempCover').textContent = temp.toFixed(1) + " °C";
+          } else {
+            document.getElementById('tempCover').textContent = "-- °C";
+          }
+
+          // Mise à jour de la jauge d'humidité
+          if (humidity !== null) {
+            // L'humidité est en pourcentage de 0 à 100
+            const humidityNorm = Math.min(Math.max(humidity / 100, 0), 1);
+            const humidityAngle = humidityNorm * 360;
+            document.getElementById('humidityGauge').style.background =
+              `conic-gradient(var(--fill-color) ${humidityAngle}deg, var(--bg-color) ${humidityAngle}deg)`;
+            document.getElementById('humidityCover').textContent = humidity + " %";
+          } else {
+            document.getElementById('humidityCover').textContent = "-- %";
+          }
+        })
+        .catch(error => {
+          console.error("Erreur lors de la récupération des mesures :", error);
+        });
+    }
+
+    // Mise à jour immédiate et toutes les 2 secondes
+    updateGauges();
+    setInterval(updateGauges, 2000);
+  </script>
+</body>
+</html>
+
