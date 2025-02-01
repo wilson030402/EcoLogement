@@ -9,6 +9,33 @@ import os
 API_KEY = "5bc3a318b0393d04039340e343ff1770"  # Remplacez par votre clé API
 
 class MyHandler(BaseHTTPRequestHandler):
+    def handle_index(self):
+        # Chemin vers le fichier HTML
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'index.html')
+
+        try:
+            with open(html_file_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+
+            # Envoyer la réponse HTTP avec le contenu HTML
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(html_content.encode('utf-8'))
+
+        except FileNotFoundError:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = "Erreur interne du serveur : fichier HTML non trouvé."
+            self.wfile.write(error_message.encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = f"Erreur interne du serveur : {str(e)}"
+            self.wfile.write(error_message.encode('utf-8'))
+
     def handle_factures(self):
         # Connexion à la base de données et récupération des factures
         conn = sqlite3.connect("logement.db")
@@ -136,16 +163,49 @@ class MyHandler(BaseHTTPRequestHandler):
             error_message = f"Erreur interne du serveur : {str(e)}"
             self.wfile.write(error_message.encode('utf-8'))
 
+    def handle_voir_mesure(self):
+        """
+        Gère la route /voir_mesure qui affiche en temps réel les mesures de la base de données sous forme de jauges.
+        """
+        # Chemin vers le fichier HTML de la page "Voir mesure"
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'voir_mesure.html')
+
+        try:
+            with open(html_file_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(html_content.encode('utf-8'))
+
+        except FileNotFoundError:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = "Erreur interne du serveur : fichier HTML pour 'Voir mesure' non trouvé."
+            self.wfile.write(error_message.encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = f"Erreur interne du serveur : {str(e)}"
+            self.wfile.write(error_message.encode('utf-8'))
+
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
         query_params = urllib.parse.parse_qs(parsed_path.query)
 
-        if parsed_path.path == "/factures":
+        if parsed_path.path == "/":
+            self.handle_index()
+        elif parsed_path.path == "/factures":
             self.handle_factures()
         elif parsed_path.path == "/meteo":
             # Récupérer le paramètre 'scale', défaut à '5' si non spécifié
             scale = query_params.get('scale', ['5'])[0]
             self.handle_meteo(scale)
+        elif parsed_path.path == "/voir_mesure":
+            self.handle_voir_mesure()
         elif parsed_path.path == "/get_current_temp":
             # Route pour récupérer la température actuelle de l'API
             url = f"http://api.openweathermap.org/data/2.5/weather?q=Paris&appid={API_KEY}&units=metric"
