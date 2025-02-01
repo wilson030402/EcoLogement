@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Contrôle de l'Actionneur</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    h1 {
+      margin-bottom: 20px;
+    }
+    /* Style du switch */
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 60px;
+      height: 34px;
+    }
+    .switch input { 
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 34px;
+    }
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 26px;
+      width: 26px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    input:checked + .slider {
+      background-color: #2196F3;
+    }
+    input:checked + .slider:before {
+      transform: translateX(26px);
+    }
+    .container {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Contrôle de l'Actionneur</h1>
+    <label class="switch">
+      <input type="checkbox" id="actionneurSwitch">
+      <span class="slider"></span>
+    </label>
+    <p id="statusText">État : OFF</p>
+  </div>
+  <script>
+    const switchElem = document.getElementById('actionneurSwitch');
+    const statusText = document.getElementById('statusText');
+
+    // Fonction pour envoyer l'état de l'actionneur au serveur via POST
+    function sendActionneurState(state) {
+      fetch('/add_mesure', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          id_capteur_actionneur: 101,
+          valeur: state,  // 1 pour ON, 0 pour OFF
+          date_insertion: new Date().toISOString()
+        })
+      })
+      .then(response => response.json())
+      .then(data => {
+        console.log('Réponse:', data);
+      })
+      .catch(error => {
+        console.error('Erreur:', error);
+      });
+    }
+
+    switchElem.addEventListener('change', function() {
+      if (this.checked) {
+        statusText.textContent = "État : ON";
+        sendActionneurState(1);
+      } else {
+        statusText.textContent = "État : OFF";
+        sendActionneurState(0);
+      }
+    });
+  </script>
+</body>
+</html>
+
