@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Visualisation des Mesures</title>
+  <title>Visualisation Dynamique des Mesures</title>
   <!-- Chargement de Google Charts pour l'affichage graphique -->
   <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
@@ -16,7 +16,7 @@
     h1 {
       margin-bottom: 20px;
     }
-    /* Style du bouton de basculement */
+    /* Bouton de basculement */
     #toggleButton {
       background-color: #007bff;
       border: none;
@@ -33,17 +33,18 @@
     #toggleButton svg {
       fill: #fff;
     }
-    /* Conteneurs pour les deux modes */
+    /* Conteneurs pour les deux vues */
     .view {
       display: none;
     }
     .view.active {
       display: block;
     }
-    /* Style de la jauge circulaire */
+    /* Styles généraux pour une jauge circulaire */
     .gauge-container {
       display: inline-block;
       margin: 20px;
+      text-align: center;
     }
     .gauge {
       position: relative;
@@ -78,15 +79,17 @@
       font-size: 1.8em;
       font-weight: bold;
     }
-    p {
-      margin-top: 10px;
-      font-size: 1.2em;
-    }
-    /* Styles pour les graphiques */
-    .charts-container {
+    /* Conteneur dynamique pour les jauges */
+    #gaugesContainer {
       display: flex;
-      justify-content: space-around;
       flex-wrap: wrap;
+      justify-content: center;
+    }
+    /* Styles pour les graphiques dynamiques */
+    #chartsContainer {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
     }
     .chart-box {
       flex: 1 1 45%;
@@ -96,7 +99,7 @@
   </style>
 </head>
 <body>
-  <h1>Visualisation des Mesures</h1>
+  <h1>Visualisation Dynamique des Mesures</h1>
   <!-- Bouton de basculement -->
   <button id="toggleButton">
     <!-- Icône graphique (affiché en mode jauges par défaut) -->
@@ -106,102 +109,82 @@
     <span id="toggleText">Voir Graphique</span>
   </button>
 
-  <!-- Vue Jauges (affichage par défaut) -->
+  <!-- Vue Jauges (dynamique) -->
   <div id="gaugeView" class="view active">
-    <!-- Jauge de Température (ID 0) -->
-    <div class="gauge-container">
-      <div class="gauge" id="tempGauge" style="--fill-color: #e0440e; --bg-color: #f6c7b6;">
-        <div class="gauge__cover" id="tempCover">-- °C</div>
-      </div>
-      <p>Température (ID 0)</p>
-    </div>
-    <!-- Jauge d'Humidité (ID 1) -->
-    <div class="gauge-container">
-      <div class="gauge" id="humidityGauge" style="--fill-color: #1c91c0; --bg-color: #d7e5f0;">
-        <div class="gauge__cover" id="humidityCover">-- %</div>
-      </div>
-      <p>Humidité (ID 1)</p>
+    <div id="gaugesContainer">
+      <!-- Les jauges seront créées dynamiquement ici -->
     </div>
   </div>
 
-  <!-- Vue Graphique -->
+  <!-- Vue Graphiques (dynamique) -->
   <div id="graphView" class="view">
-    <div class="charts-container">
-      <!-- Graphique de gauche pour ID 0 -->
-      <div class="chart-box">
-        <div id="chartLeft" style="width: 100%; height: 300px;"></div>
-        <p>Graphique (ID 0)</p>
-      </div>
-      <!-- Graphique de droite pour ID 1 -->
-      <div class="chart-box">
-        <div id="chartRight" style="width: 100%; height: 300px;"></div>
-        <p>Graphique (ID 1)</p>
-      </div>
+    <div id="chartsContainer">
+      <!-- Les graphiques seront créés dynamiquement ici -->
     </div>
   </div>
 
   <script>
-    /* ============================================================================
-       MISE À JOUR DES JAUGES AVEC LES DONNÉES DE LA BASE (/get_mesures)
-       ID 0 => Température, ID 1 => Humidité
-    ============================================================================ */
-    function updateGauges() {
+    /************** Configuration par défaut pour les capteurs **************/
+    const sensorConfigs = {
+      0: { min: -10, max: 40, unit: "°C", fillColor: "#e0440e", bgColor: "#f6c7b6" },
+      1: { min: 0, max: 100, unit: "%", fillColor: "#1c91c0", bgColor: "#d7e5f0" }
+    };
+    // Pour les autres capteurs, on utilise une configuration par défaut
+    const defaultConfig = { min: 0, max: 100, unit: "", fillColor: "#34a853", bgColor: "#c8e6c9" };
+
+    /************** Mise à jour dynamique des jauges **************/
+    function updateDynamicGauges() {
       fetch('/get_mesures')
         .then(response => response.json())
         .then(data => {
-          // Filtrer les mesures pour chaque capteur
-          const tempMeasures = data.filter(m => parseInt(m.id_capteur_actionneur) === 0);
-          const humidityMeasures = data.filter(m => parseInt(m.id_capteur_actionneur) === 1);
+          // Regrouper les mesures par capteur (id_capteur_actionneur)
+          const sensors = {};
+          data.forEach(m => {
+            const id = parseInt(m.id_capteur_actionneur);
+            if (!sensors[id]) {
+              sensors[id] = [];
+            }
+            sensors[id].push(m);
+          });
 
-          // On prend la dernière mesure de chaque capteur (si disponible)
-          let temp = null;
-          let humidity = null;
-
-          if (tempMeasures.length > 0) {
-            temp = parseFloat(tempMeasures[tempMeasures.length - 1].valeur);
-          }
-          if (humidityMeasures.length > 0) {
-            humidity = parseFloat(humidityMeasures[humidityMeasures.length - 1].valeur);
-          }
-
-          // Mise à jour de la jauge de température (ID 0)
-          if (temp !== null) {
-            // Plage de -10°C à 40°C normalisée sur 0–1
-            const tempNorm = Math.min(Math.max((temp + 10) / 50, 0), 1);
-            const tempAngle = tempNorm * 360;
-            document.getElementById('tempGauge').style.background =
-              `conic-gradient(var(--fill-color) ${tempAngle}deg, var(--bg-color) ${tempAngle}deg)`;
-            document.getElementById('tempCover').textContent = temp.toFixed(1) + " °C";
-          } else {
-            document.getElementById('tempCover').textContent = "-- °C";
+          // Pour chaque capteur, trier par date et prendre la dernière mesure
+          for (let id in sensors) {
+            sensors[id].sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
           }
 
-          // Mise à jour de la jauge d'humidité (ID 1)
-          if (humidity !== null) {
-            const humidityNorm = Math.min(Math.max(humidity / 100, 0), 1);
-            const humidityAngle = humidityNorm * 360;
-            document.getElementById('humidityGauge').style.background =
-              `conic-gradient(var(--fill-color) ${humidityAngle}deg, var(--bg-color) ${humidityAngle}deg)`;
-            document.getElementById('humidityCover').textContent = humidity + " %";
-          } else {
-            document.getElementById('humidityCover').textContent = "-- %";
+          const gaugesContainer = document.getElementById('gaugesContainer');
+          // Pour simplifier, on reconstruit entièrement la vue des jauges à chaque mise à jour
+          gaugesContainer.innerHTML = "";
+          for (let id in sensors) {
+            const measures = sensors[id];
+            let lastValue = measures.length > 0 ? parseFloat(measures[measures.length - 1].valeur) : null;
+            // Récupérer la configuration spécifique au capteur ou la configuration par défaut
+            const config = sensorConfigs.hasOwnProperty(id) ? sensorConfigs[id] : defaultConfig;
+            // Calculer la normalisation (attention, si lastValue est null, on affiche "--")
+            let gaugeHTML = `<div class="gauge-container">
+              <div class="gauge" id="gauge_${id}" style="--fill-color: ${config.fillColor}; --bg-color: ${config.bgColor};">
+                <div class="gauge__cover" id="gaugeCover_${id}">-- ${config.unit}</div>
+              </div>
+              <p>Capteur (ID ${id})</p>
+            </div>`;
+            gaugesContainer.innerHTML += gaugeHTML;
+            // Si une valeur existe, mettre à jour le style de la jauge
+            if (lastValue !== null) {
+              // Normaliser : (valeur - min) / (max - min)
+              const norm = Math.min(Math.max((lastValue - config.min) / (config.max - config.min), 0), 1);
+              const angle = norm * 360;
+              const gaugeElem = document.getElementById('gauge_' + id);
+              gaugeElem.style.background = `conic-gradient(var(--fill-color) ${angle}deg, var(--bg-color) ${angle}deg)`;
+              document.getElementById('gaugeCover_' + id).textContent = lastValue.toFixed(1) + " " + config.unit;
+            }
           }
         })
         .catch(error => {
-          console.error("Erreur lors de la récupération des mesures :", error);
+          console.error("Erreur lors de la récupération des mesures pour les jauges :", error);
         });
     }
 
-    /* Mise à jour des jauges toutes les 2 secondes */
-    updateGauges();
-    setInterval(updateGauges, 2000);
-
-    /* ============================================================================
-       AFFICHAGE GRAPHIQUE : Deux courbes simples à l'aide de Google Charts
-       - Axe X : Index séquentiel (ordre chronologique)
-       - Axe Y : Valeur de la mesure
-       Graphique de gauche : ID 0, Graphique de droite : ID 1
-    ============================================================================ */
+    /************** Mise à jour des graphiques dynamiques **************/
     // Charger le package 'corechart'
     google.charts.load('current', {'packages':['corechart']});
 
@@ -209,65 +192,62 @@
       fetch('/get_mesures')
         .then(response => response.json())
         .then(data => {
-          // Filtrer et trier les mesures par ordre chronologique
-          const id0Measures = data
-            .filter(m => parseInt(m.id_capteur_actionneur) === 0)
-            .sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
-          const id1Measures = data
-            .filter(m => parseInt(m.id_capteur_actionneur) === 1)
-            .sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
-
-          // Préparer le tableau pour le graphique ID 0 (graphique de gauche)
-          let dataArrayId0 = [['Index', 'Valeur']];
-          if (id0Measures.length === 0) {
-            // S'il n'y a pas de données, on affiche un point fictif
-            dataArrayId0.push([1, 0]);
-          } else {
-            id0Measures.forEach((m, index) => {
-              dataArrayId0.push([index + 1, parseFloat(m.valeur)]);
-            });
+          // Regrouper les mesures par capteur
+          const sensors = {};
+          data.forEach(m => {
+            const id = parseInt(m.id_capteur_actionneur);
+            if (!sensors[id]) {
+              sensors[id] = [];
+            }
+            sensors[id].push(m);
+          });
+          // Pour chaque capteur, trier les mesures par ordre chronologique
+          for (let id in sensors) {
+            sensors[id].sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
           }
-
-          // Préparer le tableau pour le graphique ID 1 (graphique de droite)
-          let dataArrayId1 = [['Index', 'Valeur']];
-          if (id1Measures.length === 0) {
-            dataArrayId1.push([1, 0]);
-          } else {
-            id1Measures.forEach((m, index) => {
-              dataArrayId1.push([index + 1, parseFloat(m.valeur)]);
-            });
+          // Vider le conteneur des graphiques
+          const chartsContainer = document.getElementById('chartsContainer');
+          chartsContainer.innerHTML = "";
+          // Créer un graphique par capteur
+          for (let id in sensors) {
+            const measures = sensors[id];
+            const dataArray = [['Index', 'Valeur']];
+            if (measures.length === 0) {
+              dataArray.push([1, 0]);
+            } else {
+              measures.forEach((m, index) => {
+                dataArray.push([index + 1, parseFloat(m.valeur)]);
+              });
+            }
+            const chartData = google.visualization.arrayToDataTable(dataArray);
+            const options = {
+              title: 'Mesures (ID ' + id + ')',
+              legend: { position: 'none' },
+              hAxis: { title: 'Mesure n°' },
+              vAxis: { title: 'Valeur' }
+            };
+            // Créer dynamiquement le conteneur du graphique
+            const chartBox = document.createElement('div');
+            chartBox.className = 'chart-box';
+            const chartId = 'chart_' + id;
+            chartBox.innerHTML = `<div id="${chartId}" style="width: 100%; height: 300px;"></div>
+                                  <p>Graphique (ID ${id})</p>`;
+            chartsContainer.appendChild(chartBox);
+            // Dessiner le graphique
+            const chart = new google.visualization.LineChart(document.getElementById(chartId));
+            chart.draw(chartData, options);
           }
-
-          // Créer les DataTable pour Google Charts
-          const dataId0 = google.visualization.arrayToDataTable(dataArrayId0);
-          const dataId1 = google.visualization.arrayToDataTable(dataArrayId1);
-
-          // Options de configuration pour les graphiques
-          const optionsId0 = {
-            title: 'Mesures (ID 0)',
-            legend: { position: 'none' },
-            hAxis: { title: 'Mesure n°' },
-            vAxis: { title: 'Valeur' }
-          };
-          const optionsId1 = {
-            title: 'Mesures (ID 1)',
-            legend: { position: 'none' },
-            hAxis: { title: 'Mesure n°' },
-            vAxis: { title: 'Valeur' }
-          };
-
-          // Dessiner les graphiques
-          const chartLeft = new google.visualization.LineChart(document.getElementById('chartLeft'));
-          const chartRight = new google.visualization.LineChart(document.getElementById('chartRight'));
-          chartLeft.draw(dataId0, optionsId0);
-          chartRight.draw(dataId1, optionsId1);
         })
         .catch(error => {
           console.error("Erreur lors de la récupération des mesures pour les graphiques :", error);
         });
     }
 
-    /* Actualisation du graphique toutes les 2 secondes lorsqu'il est visible */
+    /************** Actualisation automatique **************/
+    // Actualiser les jauges et graphiques toutes les 2 secondes
+    updateDynamicGauges();
+    setInterval(updateDynamicGauges, 2000);
+
     let graphInterval = null;
     function startGraphAutoUpdate() {
       drawGraphCharts();
@@ -280,28 +260,25 @@
       }
     }
 
-    /* ============================================================================
-       BASCULE ENTRE LES MODES JAUGES ET GRAPHIQUES
-    ============================================================================ */
+    /************** Basculement entre vues **************/
     const toggleButton = document.getElementById('toggleButton');
     const gaugeView = document.getElementById('gaugeView');
     const graphView = document.getElementById('graphView');
 
-    // Icône de jauge (à afficher en mode graphique)
+    // Icône de jauge pour le bouton (affiché en mode graphique)
     const gaugeIconSVG = `<svg id="gaugeIcon" xmlns="http://www.w3.org/2000/svg" height="24" width="24">
       <path d="M12 4a8 8 0 0 0-8 8h2a6 6 0 1 1 12 0h2a8 8 0 0 0-8-8zm0 14a6 6 0 0 0-6-6H4a8 8 0 0 1 16 0h-2a6 6 0 0 0-6 6z"/>
     </svg>`;
 
-    // Par défaut, mode jauges activé
     toggleButton.addEventListener('click', () => {
       if (gaugeView.classList.contains('active')) {
-        // Passer en mode graphique
+        // Passage en mode graphique
         gaugeView.classList.remove('active');
         graphView.classList.add('active');
         toggleButton.innerHTML = gaugeIconSVG + '<span id="toggleText">Voir Jauges</span>';
         startGraphAutoUpdate();
       } else {
-        // Revenir en mode jauges
+        // Retour en mode jauges
         graphView.classList.remove('active');
         gaugeView.classList.add('active');
         toggleButton.innerHTML = `<svg id="graphIcon" xmlns="http://www.w3.org/2000/svg" height="24" width="24">
