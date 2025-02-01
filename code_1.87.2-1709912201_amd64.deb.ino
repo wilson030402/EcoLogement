@@ -75,6 +75,7 @@ void loop() {
           float sensorValue = kv.value().as<float>();
           // Afficher l'id du capteur sur 3 chiffres et sa valeur formatée sur 2 décimales
           Serial.printf("Capteur %03d : Valeur = %.2f\n", sensorId, sensorValue);
+          
           if (sensorValue == 1.00) {
               digitalWrite(LED_BUILTIN, LOW);
           }
