@@ -141,10 +141,13 @@
           const sensors = {};
           data.forEach(m => {
             const id = parseInt(m.id_capteur_actionneur);
-            if (!sensors[id]) {
-              sensors[id] = [];
+            // Filtrer : n'inclure que les capteurs dont l'ID est compris entre 0 et 100
+            if (id >= 0 && id <= 100) {
+              if (!sensors[id]) {
+                sensors[id] = [];
+              }
+              sensors[id].push(m);
             }
-            sensors[id].push(m);
           });
 
           // Pour chaque capteur, trier par date et prendre la dernière mesure
@@ -153,14 +156,14 @@
           }
 
           const gaugesContainer = document.getElementById('gaugesContainer');
-          // Pour simplifier, on reconstruit entièrement la vue des jauges à chaque mise à jour
+          // Reconstruire entièrement la vue des jauges à chaque mise à jour
           gaugesContainer.innerHTML = "";
           for (let id in sensors) {
             const measures = sensors[id];
             let lastValue = measures.length > 0 ? parseFloat(measures[measures.length - 1].valeur) : null;
             // Récupérer la configuration spécifique au capteur ou la configuration par défaut
             const config = sensorConfigs.hasOwnProperty(id) ? sensorConfigs[id] : defaultConfig;
-            // Calculer la normalisation (attention, si lastValue est null, on affiche "--")
+            // Création du HTML de la jauge
             let gaugeHTML = `<div class="gauge-container">
               <div class="gauge" id="gauge_${id}" style="--fill-color: ${config.fillColor}; --bg-color: ${config.bgColor};">
                 <div class="gauge__cover" id="gaugeCover_${id}">-- ${config.unit}</div>
@@ -168,7 +171,7 @@
               <p>Capteur (ID ${id})</p>
             </div>`;
             gaugesContainer.innerHTML += gaugeHTML;
-            // Si une valeur existe, mettre à jour le style de la jauge
+            // Si une valeur existe, mettre à jour la jauge
             if (lastValue !== null) {
               // Normaliser : (valeur - min) / (max - min)
               const norm = Math.min(Math.max((lastValue - config.min) / (config.max - config.min), 0), 1);
@@ -196,12 +199,15 @@
           const sensors = {};
           data.forEach(m => {
             const id = parseInt(m.id_capteur_actionneur);
-            if (!sensors[id]) {
-              sensors[id] = [];
+            // Filtrer pour n'inclure que les capteurs dont l'ID est compris entre 0 et 100
+            if (id >= 0 && id <= 100) {
+              if (!sensors[id]) {
+                sensors[id] = [];
+              }
+              sensors[id].push(m);
             }
-            sensors[id].push(m);
           });
-          // Pour chaque capteur, trier les mesures par ordre chronologique
+          // Trier les mesures pour chaque capteur par ordre chronologique
           for (let id in sensors) {
             sensors[id].sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
           }
