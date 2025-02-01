@@ -2,7 +2,9 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Jauges de Température et d'Humidité</title>
+  <title>Visualisation des Mesures</title>
+  <!-- Chargement de Google Charts pour l'affichage graphique -->
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -12,24 +14,46 @@
       padding: 20px;
     }
     h1 {
+      margin-bottom: 20px;
+    }
+    /* Style du bouton de basculement */
+    #toggleButton {
+      background-color: #007bff;
+      border: none;
+      color: #fff;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
       margin-bottom: 30px;
     }
+    #toggleButton svg {
+      fill: #fff;
+    }
+    /* Conteneurs pour les deux modes */
+    .view {
+      display: none;
+    }
+    .view.active {
+      display: block;
+    }
+    /* Style de la jauge circulaire */
     .gauge-container {
       display: inline-block;
       margin: 20px;
     }
-    /* Style de la jauge circulaire */
     .gauge {
       position: relative;
       width: 200px;
       height: 200px;
       border-radius: 50%;
       background: conic-gradient(var(--fill-color) 0deg, var(--bg-color) 0deg);
-      /* Les variables CSS --fill-color et --bg-color définissent respectivement la couleur de remplissage et celle de l'arrière-plan */
       margin: 0 auto;
       transition: background 0.5s ease;
     }
-    /* Cercle blanc au centre pour l'effet de cadran */
     .gauge::after {
       content: "";
       position: absolute;
@@ -41,7 +65,6 @@
       border-radius: 50%;
       z-index: 1;
     }
-    /* La zone d'affichage de la valeur */
     .gauge__cover {
       position: absolute;
       top: 0;
@@ -59,57 +82,93 @@
       margin-top: 10px;
       font-size: 1.2em;
     }
+    /* Styles pour les graphiques */
+    .charts-container {
+      display: flex;
+      justify-content: space-around;
+      flex-wrap: wrap;
+    }
+    .chart-box {
+      flex: 1 1 45%;
+      min-width: 300px;
+      margin: 20px;
+    }
   </style>
 </head>
 <body>
-  <h1>Jauges de Température et d'Humidité</h1>
-  <!-- Jauge de Température -->
-  <div class="gauge-container">
-    <div class="gauge" id="tempGauge" style="--fill-color: #e0440e; --bg-color: #f6c7b6;">
-      <div class="gauge__cover" id="tempCover">-- °C</div>
+  <h1>Visualisation des Mesures</h1>
+  <!-- Bouton de basculement -->
+  <button id="toggleButton">
+    <!-- Icône graphique (affiché en mode jauges par défaut) -->
+    <svg id="graphIcon" xmlns="http://www.w3.org/2000/svg" height="24" width="24">
+      <path d="M3 17h2v-7H3v7zm4 0h2v-11H7v11zm4 0h2V7h-2v10zm4 0h2v-4h-2v4zm4 0h2v-9h-2v9z"/>
+    </svg>
+    <span id="toggleText">Voir Graphique</span>
+  </button>
+
+  <!-- Vue Jauges (affichage par défaut) -->
+  <div id="gaugeView" class="view active">
+    <!-- Jauge de Température (ID 0) -->
+    <div class="gauge-container">
+      <div class="gauge" id="tempGauge" style="--fill-color: #e0440e; --bg-color: #f6c7b6;">
+        <div class="gauge__cover" id="tempCover">-- °C</div>
+      </div>
+      <p>Température (ID 0)</p>
     </div>
-    <p>Température</p>
+    <!-- Jauge d'Humidité (ID 1) -->
+    <div class="gauge-container">
+      <div class="gauge" id="humidityGauge" style="--fill-color: #1c91c0; --bg-color: #d7e5f0;">
+        <div class="gauge__cover" id="humidityCover">-- %</div>
+      </div>
+      <p>Humidité (ID 1)</p>
+    </div>
   </div>
-  <!-- Jauge d'Humidité -->
-  <div class="gauge-container">
-    <div class="gauge" id="humidityGauge" style="--fill-color: #1c91c0; --bg-color: #d7e5f0;">
-      <div class="gauge__cover" id="humidityCover">-- %</div>
+
+  <!-- Vue Graphique -->
+  <div id="graphView" class="view">
+    <div class="charts-container">
+      <!-- Graphique de gauche pour ID 0 -->
+      <div class="chart-box">
+        <div id="chartLeft" style="width: 100%; height: 300px;"></div>
+        <p>Graphique (ID 0)</p>
+      </div>
+      <!-- Graphique de droite pour ID 1 -->
+      <div class="chart-box">
+        <div id="chartRight" style="width: 100%; height: 300px;"></div>
+        <p>Graphique (ID 1)</p>
+      </div>
     </div>
-    <p>Humidité</p>
   </div>
 
   <script>
-    /**
-     * La fonction updateGauges récupère les mesures de la base de données via la route /get_mesures,
-     * filtre les enregistrements pour l'ID 0 (température) et l'ID 1 (humidité),
-     * puis met à jour les jauges.
-     */
+    /* ============================================================================
+       MISE À JOUR DES JAUGES AVEC LES DONNÉES DE LA BASE (/get_mesures)
+       ID 0 => Température, ID 1 => Humidité
+    ============================================================================ */
     function updateGauges() {
       fetch('/get_mesures')
         .then(response => response.json())
         .then(data => {
-          // Filtrer les mesures par capteur
+          // Filtrer les mesures pour chaque capteur
           const tempMeasures = data.filter(m => parseInt(m.id_capteur_actionneur) === 0);
           const humidityMeasures = data.filter(m => parseInt(m.id_capteur_actionneur) === 1);
 
-          // Choisir la dernière mesure (si disponible) pour chaque capteur
+          // On prend la dernière mesure de chaque capteur (si disponible)
           let temp = null;
           let humidity = null;
 
           if (tempMeasures.length > 0) {
-            // On prend la dernière mesure
             temp = parseFloat(tempMeasures[tempMeasures.length - 1].valeur);
           }
           if (humidityMeasures.length > 0) {
             humidity = parseFloat(humidityMeasures[humidityMeasures.length - 1].valeur);
           }
 
-          // Mise à jour de la jauge de température
+          // Mise à jour de la jauge de température (ID 0)
           if (temp !== null) {
-            // Nous considérons ici une plage de -10°C à 40°C.
-            // On normalise : -10 -> 0 et 40 -> 1.
+            // Plage de -10°C à 40°C normalisée sur 0–1
             const tempNorm = Math.min(Math.max((temp + 10) / 50, 0), 1);
-            const tempAngle = tempNorm * 360; // conversion en degrés
+            const tempAngle = tempNorm * 360;
             document.getElementById('tempGauge').style.background =
               `conic-gradient(var(--fill-color) ${tempAngle}deg, var(--bg-color) ${tempAngle}deg)`;
             document.getElementById('tempCover').textContent = temp.toFixed(1) + " °C";
@@ -117,9 +176,8 @@
             document.getElementById('tempCover').textContent = "-- °C";
           }
 
-          // Mise à jour de la jauge d'humidité
+          // Mise à jour de la jauge d'humidité (ID 1)
           if (humidity !== null) {
-            // L'humidité est en pourcentage de 0 à 100
             const humidityNorm = Math.min(Math.max(humidity / 100, 0), 1);
             const humidityAngle = humidityNorm * 360;
             document.getElementById('humidityGauge').style.background =
@@ -134,9 +192,124 @@
         });
     }
 
-    // Mise à jour immédiate et toutes les 2 secondes
+    /* Mise à jour des jauges toutes les 2 secondes */
     updateGauges();
     setInterval(updateGauges, 2000);
+
+    /* ============================================================================
+       AFFICHAGE GRAPHIQUE : Deux courbes simples à l'aide de Google Charts
+       - Axe X : Index séquentiel (ordre chronologique)
+       - Axe Y : Valeur de la mesure
+       Graphique de gauche : ID 0, Graphique de droite : ID 1
+    ============================================================================ */
+    // Charger le package 'corechart'
+    google.charts.load('current', {'packages':['corechart']});
+
+    function drawGraphCharts() {
+      fetch('/get_mesures')
+        .then(response => response.json())
+        .then(data => {
+          // Filtrer et trier les mesures par ordre chronologique
+          const id0Measures = data
+            .filter(m => parseInt(m.id_capteur_actionneur) === 0)
+            .sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
+          const id1Measures = data
+            .filter(m => parseInt(m.id_capteur_actionneur) === 1)
+            .sort((a, b) => new Date(a.date_insertion) - new Date(b.date_insertion));
+
+          // Préparer le tableau pour le graphique ID 0 (graphique de gauche)
+          let dataArrayId0 = [['Index', 'Valeur']];
+          if (id0Measures.length === 0) {
+            // S'il n'y a pas de données, on affiche un point fictif
+            dataArrayId0.push([1, 0]);
+          } else {
+            id0Measures.forEach((m, index) => {
+              dataArrayId0.push([index + 1, parseFloat(m.valeur)]);
+            });
+          }
+
+          // Préparer le tableau pour le graphique ID 1 (graphique de droite)
+          let dataArrayId1 = [['Index', 'Valeur']];
+          if (id1Measures.length === 0) {
+            dataArrayId1.push([1, 0]);
+          } else {
+            id1Measures.forEach((m, index) => {
+              dataArrayId1.push([index + 1, parseFloat(m.valeur)]);
+            });
+          }
+
+          // Créer les DataTable pour Google Charts
+          const dataId0 = google.visualization.arrayToDataTable(dataArrayId0);
+          const dataId1 = google.visualization.arrayToDataTable(dataArrayId1);
+
+          // Options de configuration pour les graphiques
+          const optionsId0 = {
+            title: 'Mesures (ID 0)',
+            legend: { position: 'none' },
+            hAxis: { title: 'Mesure n°' },
+            vAxis: { title: 'Valeur' }
+          };
+          const optionsId1 = {
+            title: 'Mesures (ID 1)',
+            legend: { position: 'none' },
+            hAxis: { title: 'Mesure n°' },
+            vAxis: { title: 'Valeur' }
+          };
+
+          // Dessiner les graphiques
+          const chartLeft = new google.visualization.LineChart(document.getElementById('chartLeft'));
+          const chartRight = new google.visualization.LineChart(document.getElementById('chartRight'));
+          chartLeft.draw(dataId0, optionsId0);
+          chartRight.draw(dataId1, optionsId1);
+        })
+        .catch(error => {
+          console.error("Erreur lors de la récupération des mesures pour les graphiques :", error);
+        });
+    }
+
+    /* Actualisation du graphique toutes les 2 secondes lorsqu'il est visible */
+    let graphInterval = null;
+    function startGraphAutoUpdate() {
+      drawGraphCharts();
+      graphInterval = setInterval(drawGraphCharts, 2000);
+    }
+    function stopGraphAutoUpdate() {
+      if (graphInterval) {
+        clearInterval(graphInterval);
+        graphInterval = null;
+      }
+    }
+
+    /* ============================================================================
+       BASCULE ENTRE LES MODES JAUGES ET GRAPHIQUES
+    ============================================================================ */
+    const toggleButton = document.getElementById('toggleButton');
+    const gaugeView = document.getElementById('gaugeView');
+    const graphView = document.getElementById('graphView');
+
+    // Icône de jauge (à afficher en mode graphique)
+    const gaugeIconSVG = `<svg id="gaugeIcon" xmlns="http://www.w3.org/2000/svg" height="24" width="24">
+      <path d="M12 4a8 8 0 0 0-8 8h2a6 6 0 1 1 12 0h2a8 8 0 0 0-8-8zm0 14a6 6 0 0 0-6-6H4a8 8 0 0 1 16 0h-2a6 6 0 0 0-6 6z"/>
+    </svg>`;
+
+    // Par défaut, mode jauges activé
+    toggleButton.addEventListener('click', () => {
+      if (gaugeView.classList.contains('active')) {
+        // Passer en mode graphique
+        gaugeView.classList.remove('active');
+        graphView.classList.add('active');
+        toggleButton.innerHTML = gaugeIconSVG + '<span id="toggleText">Voir Jauges</span>';
+        startGraphAutoUpdate();
+      } else {
+        // Revenir en mode jauges
+        graphView.classList.remove('active');
+        gaugeView.classList.add('active');
+        toggleButton.innerHTML = `<svg id="graphIcon" xmlns="http://www.w3.org/2000/svg" height="24" width="24">
+          <path d="M3 17h2v-7H3v7zm4 0h2v-11H7v11zm4 0h2V7h-2v10zm4 0h2v-4h-2v4zm4 0h2v-9h-2v9z"/>
+        </svg><span id="toggleText">Voir Graphique</span>`;
+        stopGraphAutoUpdate();
+      }
+    });
   </script>
 </body>
 </html>
