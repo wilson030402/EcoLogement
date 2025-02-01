@@ -191,6 +191,30 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
             error_message = f"Erreur interne du serveur : {str(e)}"
             self.wfile.write(error_message.encode('utf-8'))
+            
+    def handle_actionneur(self):
+        # Route pour afficher la page de contrôle de l'actionneur
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'actionneur.html')
+        try:
+            with open(html_file_path, 'r', encoding='utf-8') as file:
+                html_content = file.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.end_headers()
+            self.wfile.write(html_content.encode('utf-8'))
+        except FileNotFoundError:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = "Erreur interne du serveur : fichier HTML pour 'Actionneur' non trouvé."
+            self.wfile.write(error_message.encode('utf-8'))
+        except Exception as e:
+            self.send_response(500)
+            self.send_header("Content-Type", "text/plain")
+            self.end_headers()
+            error_message = f"Erreur interne du serveur : {str(e)}"
+            self.wfile.write(error_message.encode('utf-8'))
+   
 
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
@@ -206,6 +230,8 @@ class MyHandler(BaseHTTPRequestHandler):
             self.handle_meteo(scale)
         elif parsed_path.path == "/capteur":
             self.handle_voir_mesure()
+        elif parsed_path.path == "/actionneur":
+            self.handle_actionneur() 
         elif parsed_path.path == "/get_current_temp":
             # Route pour récupérer la température actuelle de l'API
             url = f"http://api.openweathermap.org/data/2.5/weather?q=Paris&appid={API_KEY}&units=metric"
