@@ -2,78 +2,93 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Contrôle de l'Actionneur</title>
+  <title>Contrôle de l'Actionneur - Ampoule Interactive</title>
   <style>
+    /* Style général de la page */
     body {
-      font-family: Arial, sans-serif;
-      background-color: #f0f0f0;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, #34495e, #2c3e50);
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
-      margin: 0;
-    }
-    h1 {
-      margin-bottom: 20px;
-    }
-    /* Style du switch */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 60px;
-      height: 34px;
-    }
-    .switch input { 
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 34px;
-    }
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 26px;
-      width: 26px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    input:checked + .slider {
-      background-color: #2196F3;
-    }
-    input:checked + .slider:before {
-      transform: translateX(26px);
+      font-family: 'Arial', sans-serif;
+      color: #fff;
     }
     .container {
       text-align: center;
+    }
+    /* Conteneur de l'ampoule et du cordon */
+    .bulb-container {
+      position: relative;
+      display: inline-block;
+    }
+    /* Représentation de l'ampoule */
+    .bulb {
+      width: 120px;
+      height: 120px;
+      background: radial-gradient(circle, #555 60%, #222);
+      border-radius: 50%;
+      margin: 0 auto;
+      transition: background 0.5s ease, box-shadow 0.5s ease;
+    }
+    /* Etat ON : l'ampoule s'illumine avec un glow jaune */
+    .bulb.on {
+      background: radial-gradient(circle, #ffeb3b 60%, #fbc02d);
+      box-shadow: 0 0 30px 10px rgba(255, 235, 59, 0.8);
+    }
+    /* Représentation du culot de l'ampoule */
+    .bulb:after {
+      content: "";
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 20px;
+      background: #999;
+      border-radius: 5px;
+    }
+    /* Le cordon à tirer */
+    .cord {
+      width: 6px;
+      height: 80px;
+      background: #ccc;
+      margin: 20px auto 0;
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.3s ease;
+    }
+    /* Animation lors du tirage du cordon */
+    .cord.pull {
+      transform: translateY(15px);
+    }
+    /* Texte d'état */
+    #statusText {
+      margin-top: 30px;
+      font-size: 1.2em;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>Contrôle de l'Actionneur</h1>
-    <label class="switch">
-      <input type="checkbox" id="actionneurSwitch">
-      <span class="slider"></span>
-    </label>
+    <h1>LED</h1>
+    <div class="bulb-container">
+      <div class="bulb" id="bulb"></div>
+      <div class="cord" id="cord"></div>
+    </div>
     <p id="statusText">État : OFF</p>
   </div>
+
   <script>
-    const switchElem = document.getElementById('actionneurSwitch');
+    const cordElem = document.getElementById('cord');
+    const bulbElem = document.getElementById('bulb');
     const statusText = document.getElementById('statusText');
+    
+    // Variable d'état (false = off, true = on)
+    let isOn = false;
 
     // Fonction pour envoyer l'état de l'actionneur au serveur via POST
     function sendActionneurState(state) {
@@ -97,15 +112,29 @@
       });
     }
 
-    switchElem.addEventListener('change', function() {
-      if (this.checked) {
-        statusText.textContent = "État : ON";
-        sendActionneurState(1);
-      } else {
-        statusText.textContent = "État : OFF";
-        sendActionneurState(0);
-      }
-    });
+    // Fonction de basculement de l'état
+    function toggleState() {
+      // Ajout d'une classe pour simuler le tirage du cordon
+      cordElem.classList.add('pull');
+      
+      // Après 300ms, retirer l'animation et basculer l'état
+      setTimeout(() => {
+        cordElem.classList.remove('pull');
+        isOn = !isOn;
+        if (isOn) {
+          bulbElem.classList.add('on');
+          statusText.textContent = "État : ON";
+          sendActionneurState(1);
+        } else {
+          bulbElem.classList.remove('on');
+          statusText.textContent = "État : OFF";
+          sendActionneurState(0);
+        }
+      }, 300);
+    }
+
+    // Ajout d'un écouteur d'événement sur le cordon
+    cordElem.addEventListener('click', toggleState);
   </script>
 </body>
 </html>
