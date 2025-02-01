@@ -165,10 +165,10 @@ class MyHandler(BaseHTTPRequestHandler):
 
     def handle_voir_mesure(self):
         """
-        Gère la route /voir_mesure qui affiche en temps réel les mesures de la base de données sous forme de jauges.
+        Gère la route /capteur qui affiche en temps réel les mesures de la base de données sous forme de jauges.
         """
         # Chemin vers le fichier HTML de la page "Voir mesure"
-        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'voir_mesure.html')
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'capteur.html')
 
         try:
             with open(html_file_path, 'r', encoding='utf-8') as file:
@@ -204,7 +204,7 @@ class MyHandler(BaseHTTPRequestHandler):
             # Récupérer le paramètre 'scale', défaut à '5' si non spécifié
             scale = query_params.get('scale', ['5'])[0]
             self.handle_meteo(scale)
-        elif parsed_path.path == "/voir_mesure":
+        elif parsed_path.path == "/capteur":
             self.handle_voir_mesure()
         elif parsed_path.path == "/get_current_temp":
             # Route pour récupérer la température actuelle de l'API
