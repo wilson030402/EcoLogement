@@ -35,51 +35,132 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
             error_message = f"Erreur interne du serveur : {str(e)}"
             self.wfile.write(error_message.encode('utf-8'))
+            
+            
+    def handle_evolution(self):
+    # Extraire le paramètre 'period' (nombre de mois) ; par défaut, 12 mois
+        parsed_path = urllib.parse.urlparse(self.path)
+        query_params = urllib.parse.parse_qs(parsed_path.query)
+        period = query_params.get('period', ['12'])[0]
+        try:
+            period_int = int(period)
+        except ValueError:
+            period_int = 12  # Par défaut
 
-    def handle_factures(self):
-        # Connexion à la base de données et récupération des factures
+    # Construire la chaîne pour la fonction date de SQLite (exemple : "-6 months")
+        period_str = f"-{period_int} months"
+
+    # Connexion à la base de données et exécution de la requête SQL
         conn = sqlite3.connect("logement.db")
         conn.row_factory = sqlite3.Row
         c = conn.cursor()
-        c.execute("SELECT type_facture, SUM(montant) AS total FROM Facture GROUP BY type_facture")
-        factures = c.fetchall()
+        query = """
+            SELECT strftime('%Y-%m', date) AS mois,
+               SUM(CASE WHEN type_facture = 'Eau' THEN valeur_consommée ELSE 0 END) AS Eau,
+               SUM(CASE WHEN type_facture = 'Electricité' THEN valeur_consommée ELSE 0 END) AS Electricite,
+               SUM(CASE WHEN type_facture = 'Gaz' THEN valeur_consommée ELSE 0 END) AS Gaz
+            FROM Facture
+            WHERE date >= date('now', ?, 'start of month')
+            GROUP BY mois
+            ORDER BY mois;
+                """
+        c.execute(query, (period_str,))
+        evolution = c.fetchall()
         conn.close()
 
+    # Préparer le tableau de données pour Google Charts
+        data = [["Mois", "Eau", "Electricité", "Gaz"]]
+        for row in evolution:
+            data.append([row["mois"], row["Eau"], row["Electricite"], row["Gaz"]])
+
+    # Envoyer la réponse JSON
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode('utf-8'))
+
+
+
+    def handle_factures(self):
+
+    # Extraire les paramètres de la requête
+        parsed_path = urllib.parse.urlparse(self.path)
+        query_params = urllib.parse.parse_qs(parsed_path.query)
+    
+    # Si le paramètre 'month' est présent, on renvoie un JSON filtré
+        if 'month' in query_params:
+            month = query_params['month'][0]
+            # Assurez-vous que le mois est sur 2 chiffres (ex: "01", "02", …)
+            if len(month) == 1:
+                month = "0" + month
+
+        # Connexion à la base de données et récupération des factures pour le mois spécifié
+            conn = sqlite3.connect("logement.db")
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            query = """
+                SELECT type_facture, SUM(montant) AS total
+                FROM Facture
+                WHERE strftime('%m', date) = ?
+                GROUP BY type_facture
+            """
+            c.execute(query, (month,))
+            factures = c.fetchall()
+            conn.close()
+
         # Préparation des données pour le graphique
-        chart_data = [["Type de Facture", "Montant"]]
-        for facture in factures:
-            chart_data.append([facture["type_facture"], facture["total"]])
-
-        chart_data_json = json.dumps(chart_data)
-
-        # Chemin vers le fichier HTML
-        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'facture.html')
-
-        try:
-            with open(html_file_path, 'r', encoding='utf-8') as file:
-                html_content = file.read()
-
-            # Remplacer le placeholder par les données JSON
-            html_content = html_content.replace('CHART_DATA_JSON', chart_data_json)
-
-            # Envoyer la réponse HTTP avec le contenu HTML modifié
+            chart_data = [["Type de Facture", "Montant"]]
+            for facture in factures:
+                chart_data.append([facture["type_facture"], facture["total"]])
+        
+        # Envoyer le JSON en réponse
             self.send_response(200)
-            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Type", "application/json")
             self.end_headers()
-            self.wfile.write(html_content.encode('utf-8'))
+            self.wfile.write(json.dumps(chart_data).encode('utf-8'))
+        else:
+        # Pas de paramètre "month" : on renvoie la page HTML habituelle
+            conn = sqlite3.connect("logement.db")
+            conn.row_factory = sqlite3.Row
+            c = conn.cursor()
+            c.execute("SELECT type_facture, SUM(montant) AS total FROM Facture GROUP BY type_facture")
+            factures = c.fetchall()
+            conn.close()
 
-        except FileNotFoundError:
-            self.send_response(500)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            error_message = "Erreur interne du serveur : fichier HTML non trouvé."
-            self.wfile.write(error_message.encode('utf-8'))
-        except Exception as e:
-            self.send_response(500)
-            self.send_header("Content-Type", "text/plain")
-            self.end_headers()
-            error_message = f"Erreur interne du serveur : {str(e)}"
-            self.wfile.write(error_message.encode('utf-8'))
+            chart_data = [["Type de Facture", "Montant"]]
+            for facture in factures:
+                chart_data.append([facture["type_facture"], facture["total"]])
+
+            chart_data_json = json.dumps(chart_data)
+            html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'facture.html')
+
+            try:
+                with open(html_file_path, 'r', encoding='utf-8') as file:
+                    html_content = file.read()
+
+                # Remplacer le placeholder par les données JSON
+                html_content = html_content.replace('CHART_DATA_JSON', chart_data_json)
+
+                # Envoyer la réponse HTML avec le contenu modifié
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html")
+                self.end_headers()
+                self.wfile.write(html_content.encode('utf-8'))
+
+            except FileNotFoundError:
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                error_message = "Erreur interne du serveur : fichier HTML non trouvé."
+                self.wfile.write(error_message.encode('utf-8'))
+            except Exception as e:
+                self.send_response(500)
+                self.send_header("Content-Type", "text/plain")
+                self.end_headers()
+                error_message = f"Erreur interne du serveur : {str(e)}"
+                self.wfile.write(error_message.encode('utf-8'))
+
+
 
     def handle_meteo(self, scale):
         chart_data = None
@@ -232,6 +313,8 @@ class MyHandler(BaseHTTPRequestHandler):
             self.handle_voir_mesure()
         elif parsed_path.path == "/actionneur":
             self.handle_actionneur() 
+        elif parsed_path.path == "/get_evolution":
+            self.handle_evolution()
         elif parsed_path.path == "/get_current_temp":
             # Route pour récupérer la température actuelle de l'API
             url = f"http://api.openweathermap.org/data/2.5/weather?q=Paris&appid={API_KEY}&units=metric"
