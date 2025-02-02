@@ -6,7 +6,7 @@ Ceci lancera le serveur (sur le port 8888) et une page web apparaîtra. On peut 
 
 Dans le projet, il y a deux fichiers (des scripts bash) qui permettent de remplir les factures ```remplir_facture.sh``` ou les mesures ```remplir_mesure.sh```
 
-![Diagramme de l'architecture](image/EcranAccueil.png)
+![Diagramme de l'architecture](Image/EcranAccueil.png)
 
 
 ## Page d'accueil
