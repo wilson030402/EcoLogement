@@ -295,6 +295,28 @@ class MyHandler(BaseHTTPRequestHandler):
             self.end_headers()
             error_message = f"Erreur interne du serveur : {str(e)}"
             self.wfile.write(error_message.encode('utf-8'))
+            
+    def handle_configuration(self):
+        html_file_path = os.path.join(os.path.dirname(__file__), 'templates', 'configuration.html')
+        try:
+        	with open(html_file_path, 'r', encoding='utf-8') as file:
+        		html_content = file.read()
+        	self.send_response(200)
+        	self.send_header("Content-Type", "text/html")
+        	self.end_headers()
+        	self.wfile.write(html_content.encode('utf-8'))
+        except FileNotFoundError:
+        	self.send_response(500)
+        	self.send_header("Content-Type", "text/plain")
+        	self.end_headers()
+        	error_message = "Erreur interne du serveur : fichier configuration.html non trouvé."
+        	self.wfile.write(error_message.encode('utf-8'))
+        except Exception as e:
+        	self.send_response(500)
+        	self.send_header("Content-Type", "text/plain")
+        	self.end_headers()
+        	error_message = f"Erreur interne du serveur : {str(e)}"
+        	self.wfile.write(error_message.encode('utf-8'))
    
 
     def do_GET(self):
@@ -315,6 +337,8 @@ class MyHandler(BaseHTTPRequestHandler):
             self.handle_actionneur() 
         elif parsed_path.path == "/get_evolution":
             self.handle_evolution()
+        elif parsed_path.path == "/configuration":
+            self.handle_configuration()
         elif parsed_path.path == "/get_current_temp":
             # Route pour récupérer la température actuelle de l'API
             url = f"http://api.openweathermap.org/data/2.5/weather?q=Paris&appid={API_KEY}&units=metric"
@@ -392,7 +416,49 @@ class MyHandler(BaseHTTPRequestHandler):
             self.send_response(201)
             self.end_headers()
             self.wfile.write(json.dumps({"message": "Mesure ajoutée avec succès!"}).encode('utf-8'))
+            
+        elif parsed_path.path == "/delete_facture":
+            data = json.loads(post_data)
+            id_facture = data.get("id_facture")
+            if id_facture is None:
+            	self.send_response(400)
+            	self.end_headers()
+            	self.wfile.write(json.dumps({"error": "id_facture requis"}).encode('utf-8'))
+            else:
+            	conn = sqlite3.connect("logement.db")
+            	c = conn.cursor()
+            	c.execute("DELETE FROM Facture WHERE id_facture=?", (id_facture,))
+            	conn.commit()
+            	conn.close()
+            	self.send_response(200)
+            	self.end_headers()
+            	self.wfile.write(json.dumps({"message": "Facture supprimée"}).encode('utf-8'))
 
+        elif parsed_path.path == "/delete_mesure":
+        	data = json.loads(post_data)
+        	id_mesure = data.get("id_mesure")
+        	if id_mesure is None:
+     		   	self.send_response(400)
+     		   	self.end_headers()
+     		   	self.wfile.write(json.dumps({"error": "id_mesure requis"}).encode('utf-8'))
+        	else:
+        		try:
+         		   conn = sqlite3.connect("logement.db")
+         		   c = conn.cursor()
+         		   c.execute("DELETE FROM Mesure WHERE id_mesure=?", (id_mesure,))
+         		   conn.commit()
+         		   conn.close()
+         		   self.send_response(200)
+         		   self.send_header("Content-Type", "application/json")
+         		   self.end_headers()
+         		   self.wfile.write(json.dumps({"message": "Mesure supprimée"}).encode('utf-8'))
+        		except Exception as e:
+         		   self.send_response(500)
+         		   self.send_header("Content-Type", "application/json")
+         		   self.end_headers()
+         		   self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+
+        		
 if __name__ == "__main__":
     server_address = ("0.0.0.0", 8888)
     httpd = HTTPServer(server_address, MyHandler)
