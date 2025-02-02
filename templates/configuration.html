@@ -9,6 +9,23 @@
             margin: 20px;
             background: #eef;
         }
+        /* Bouton Home en haut à gauche */
+        .home-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            background-color: #4CAF50; /* Vert */
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 16px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            transition: background-color 0.3s ease;
+        }
+        .home-button:hover {
+            background-color: #45a049;
+        }
         h1 {
             text-align: center;
         }
@@ -46,6 +63,7 @@
     </style>
 </head>
 <body>
+    <a href="/" class="home-button">Home</a>
     <h1>Configuration de la Base de Données</h1>
     
     <!-- Section Factures -->
