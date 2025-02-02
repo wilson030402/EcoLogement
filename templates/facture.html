@@ -1,26 +1,108 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Camembert des Factures</title>
-    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
-    <script type="text/javascript">
-        google.charts.load('current', {'packages':['corechart']});
-        google.charts.setOnLoadCallback(drawChart);
-
-        function drawChart() {
-            var data = google.visualization.arrayToDataTable(CHART_DATA_JSON);
-            var options = {
-                title: 'Répartition des Montants par Type de Facture',
-                pieHole: 0.4
-            };
-            var chart = new google.visualization.PieChart(document.getElementById('piechart'));
-            chart.draw(data, options);
-        }
-    </script>
+  <meta charset="UTF-8">
+  <title>Évolution de la Consommation</title>
+  <!-- Chargement de Google Charts -->
+  <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 {
+      margin-top: 20px;
+      color: #333;
+    }
+    #linechart {
+      width: 900px;
+      height: 500px;
+      margin: auto;
+    }
+    .home-button {
+      display: inline-block;
+      margin: 20px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+      font-size: 16px;
+    }
+    .home-button:hover {
+      background-color: #45a049;
+    }
+    /* Style du menu déroulant pour choisir la période */
+    #periodSelect {
+      font-size: 16px;
+      padding: 5px 10px;
+      margin: 20px;
+      border-radius: 5px;
+    }
+  </style>
 </head>
 <body>
-    <h1 style="text-align: center;">Répartition des Factures</h1>
-    <div id="piechart" style="width: 900px; height: 500px; margin: auto;"></div>
+  <a href="/" class="home-button">Home</a>
+  <h1>Évolution de la Consommation sur les Derniers Mois</h1>
+  <label for="periodSelect">Période : </label>
+  <select id="periodSelect">
+    <option value="3">3 mois</option>
+    <option value="6">6 mois</option>
+    <option value="12" selected>12 mois</option>
+  </select>
+  <div id="linechart"></div>
+  
+  <script type="text/javascript">
+    // Charger le package 'corechart' de Google Charts
+    google.charts.load('current', {'packages':['corechart']});
+    
+    // Fonction pour dessiner le graphique linéaire
+    function drawLineChart(dataArray) {
+      try {
+        var data = google.visualization.arrayToDataTable(dataArray);
+      } catch (e) {
+        console.error("Erreur lors de la création du DataTable :", e);
+        return;
+      }
+      var options = {
+        title: 'Évolution de la Consommation',
+        hAxis: { title: 'Mois' },
+        vAxis: { title: 'Consommation' },
+        curveType: 'function',
+        legend: { position: 'bottom' }
+      };
+      var chart = new google.visualization.LineChart(document.getElementById('linechart'));
+      chart.draw(data, options);
+    }
+    
+    // Fonction pour récupérer les données d'évolution depuis le serveur
+    function fetchEvolutionData(period) {
+      fetch('/get_evolution?period=' + period)
+        .then(response => response.json())
+        .then(data => {
+          console.log("Données d'évolution reçues :", data);
+          // data doit être un tableau d'arrays : [["Mois", "Eau", "Electricité", "Gaz"], ...]
+          drawLineChart(data);
+        })
+        .catch(error => console.error("Erreur lors de la récupération des données d'évolution :", error));
+    }
+    
+    // Dès que Google Charts et le DOM sont chargés, configurer l'écouteur
+    document.addEventListener("DOMContentLoaded", function() {
+      google.charts.setOnLoadCallback(function() {
+        var periodSelect = document.getElementById("periodSelect");
+        periodSelect.addEventListener("change", function() {
+          var period = this.value;
+          fetchEvolutionData(period);
+        });
+        // Charger les données pour la période initialement sélectionnée
+        fetchEvolutionData(periodSelect.value);
+      });
+    });
+  </script>
 </body>
 </html>
 
