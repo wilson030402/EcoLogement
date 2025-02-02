@@ -5,6 +5,7 @@ import requests
 import sqlite3
 from datetime import datetime
 import os
+import webbrowser
 
 API_KEY = "5bc3a318b0393d04039340e343ff1770"  # Remplacez par votre clé API
 
@@ -187,7 +188,7 @@ class MyHandler(BaseHTTPRequestHandler):
                     chart_data.append([heure_et_date, item["main"]["temp"]])
                     count += 1
 
-                title = f"Prévisions Météo pour les {scale} Prochains Jours"
+                title = f"Previsions Meteo pour les {scale} Prochains Jours"
 
             except requests.exceptions.RequestException as e:
                 print(f"Erreur lors de la récupération des données météo : {e}")
@@ -463,6 +464,7 @@ if __name__ == "__main__":
     server_address = ("0.0.0.0", 8888)
     httpd = HTTPServer(server_address, MyHandler)
     print("Serveur en cours d'exécution sur le port 8888...")
+    webbrowser.open("http://localhost:8888")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
