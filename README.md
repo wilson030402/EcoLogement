@@ -24,7 +24,7 @@ Chaque page du site dispose d'un bouton ```Home``` permettant de revenir à la p
 
 Cette page permet de voir en temps réelle la consommation liées aux factures de la base de données. On peut choisir différents échelle de temps (3 mois - 6 mois - 12 mois). On peut voir alors 3 courbes (eau -électricité et gaz). 
 
-
+![Image](Image/Facture.png)
 
 ## Météo
 
@@ -53,4 +53,4 @@ Il faut éventuellement cliquer une première fois pour synchroniser la LED et l
 
 Cette page permet de voir les factures et les mesures de la base de données. L'utilité principale de cette page et de pouvoir intéragir avec la base de données de manière dynamique et en temps réel. La suppression ou l'ajout de facture/mesure se verra instantannément sur les pages correspondantes ``` facture / capteur ```
 
-![Image](Image/Config.png)
+![Image](Image/config.png)
