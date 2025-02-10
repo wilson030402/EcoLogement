@@ -6,7 +6,7 @@ Ceci lancera le serveur (sur le port 8888) et une page web apparaîtra. On peut 
 
 Dans le projet, il y a deux fichiers (des scripts bash) qui permettent de remplir les factures ```remplir_facture.sh``` ou les mesures ```remplir_mesure.sh```
 
-![Diagramme de l'architecture](Image/EcranAccueil.png)
+![Image](Image/EcranAccueil.png)
 
 
 ## Page d'accueil
@@ -24,16 +24,22 @@ Chaque page du site dispose d'un bouton ```Home``` permettant de revenir à la p
 
 Cette page permet de voir en temps réelle la consommation liées aux factures de la base de données. On peut choisir différents échelle de temps (3 mois - 6 mois - 12 mois). On peut voir alors 3 courbes (eau -électricité et gaz). 
 
+
+
 ## Météo
 
 Cette page permet de visualiser les prévisions météorologiques sur paris sur 2 échelles de temps (2 jours ou 5 jours). Pour cela, on utilise une API vers le site ```openweathermap.org``` pour avoir des données réelles
 
+![Image](Image/météo.png)
+
+
 ## Capteur
 
 Cette page permet de suivre en temps réelle les données des mesures issues de la base de données. Pour ```id``` de chaque capteur, on affichera une jauge distinctes. L'utilisateur peut choisir 2 vues au choix :
-- Une vue avec des jauges qui permet de connaitre la dernières données de la base de données 
+- Une vue avec des jauges qui permet de connaitre la dernières données de la base de données
+![Image](Image/Capteur.png)
 - Une vue sous forme de graphique (courbes) pour suivre l'évolution de la valeur au cours du temps
-
+![Image](Image/Capteur2.png)
 On affiche uniquement si il existe des mesures associés à un capteur
 
 ## Actionneur 
@@ -41,6 +47,10 @@ On affiche uniquement si il existe des mesures associés à un capteur
 Cet page permet de manipuler les actionneurs (dans notre cas il s'agira uniquement de la LED de l'ESP8266), la page dispose d'un bouton à actionneur pour contôler la LED. Il y a également une animation rendant l'expérience utilisateur dynamique est agréable.
 Il faut éventuellement cliquer une première fois pour synchroniser la LED et le site.
 
+![Image](Image/LED.png)
+
 ## Configuration
 
 Cette page permet de voir les factures et les mesures de la base de données. L'utilité principale de cette page et de pouvoir intéragir avec la base de données de manière dynamique et en temps réel. La suppression ou l'ajout de facture/mesure se verra instantannément sur les pages correspondantes ``` facture / capteur ```
+
+![Image](Image/Config.png)
